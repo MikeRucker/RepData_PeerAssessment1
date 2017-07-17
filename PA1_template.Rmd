@@ -6,7 +6,7 @@ output:
 ---
 
 Work by: Mike Rucker, Ph.D.
-Date: 7/16/2017
+Date: 7/16/2017 v.2
 
 ## Loading and preprocessing the data
 
