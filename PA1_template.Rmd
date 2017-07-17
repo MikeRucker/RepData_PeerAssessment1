@@ -5,17 +5,20 @@ output:
     keep_md: true
 ---
 
+Work by: Mike Rucker, Ph.D.
+Date: 7/16/2017
 
 ## Loading and preprocessing the data
 
-1. Code for reading in the dataset and/or processing the data
+1. Code (and libraries) for reading in the dataset and/or processing the data
 
 ```r
-actData <- read.csv("C:/temp/activity.csv", header=TRUE, sep=",")
+library(knitr)
+library(plyr)
+library(ggplot2)
+library(scales)
 
-actData$date <- as.Date(actData$date)
-actData$steps <- as.numeric(actData$steps)
-actData$interval <- as.numeric(actData$interval)
+activity <- read.csv("C:/temp/activity.csv", header=TRUE, sep=",")
 ```
 
 ## What is mean total number of steps taken per day?
@@ -23,139 +26,94 @@ actData$interval <- as.numeric(actData$interval)
 2. Histogram of the total number of steps taken each day
 
 ```r
-actDataByMonth <- aggregate(actData$steps, by = list(actData$date),
-                            FUN = sum, na.rm = TRUE)
-names(actDataByMonth) <- c("date", "steps")
-library(scales)
-library(ggplot2)
-
-ggplot(actDataByMonth, aes(x = date, y = steps)) + 
-    geom_bar(stat = "identity", fill = "lightblue", color="black", binwidth = 2000) + 
-    labs(title = "Total steps per day", x = "Date", y = "Number of Steps") +
-    scale_x_date(breaks = date_breaks("1 week"),
-                 labels = date_format("%d %b %y")) +
-    geom_line(stat="hline", yintercept=mean, linetype="dotted") +
-    geom_line(stat="hline", yintercept=median, linetype="dashed")
+hist(StepsPerDay, xlab = "Number of Steps", main = "Histogram: Steps per Day")
 ```
 
-![plot of chunk plotsumperday](figure/plotsumperday.png) 
+![](C:/figure/hist-steps-per-day.png)
 
 3. Mean and median number of steps taken each day
 
 ```r
-mean(actDataByMonth$steps)
+MeanPerDay <- mean(StepsPerDay, na.rm = TRUE)
+MedianPerDay <- median(StepsPerDay, na.rm = TRUE)
 ```
 
-```
-## [1] 9354
-```
-
-```r
-median(actDataByMonth$steps)
-```
-
-```
-## [1] 10395
-```
+The mean per day is: `10766.1886792453`
+The median per day: `10765L` 
 
 ## What is the average daily activity pattern?
 
 4. Time series plot of the average number of steps taken
 
 ```r
-actDataByInterval <- aggregate(actData$steps, by = list(actData$interval),
-                                FUN = mean, na.rm = TRUE)
-
-names(actDataByInterval) <- c("interval","steps")
+StepsPerInterval <- tapply(activity$steps, activity$interval, mean, na.rm = TRUE)
+plot(as.numeric(names(StepsPerInterval)), 
+     StepsPerInterval, 
+     xlab = "Interval", 
+     ylab = "Steps", 
+     main = "Average Daily Activity Pattern", 
+     type = "l")
 ```
 
-Plot is created using the ggplot package
-
-```r
-ggplot(actDataByInterval, aes(x = interval, y = steps)) + 
-    geom_line(color = "darkgreen") + 
-    labs(title = "Average (mean) number of steps by Interval", x = "Interval", y = "Number of steps")
-```
-
-![plot of chunk plotmeanperinteval](figure/plotmeanperinteval.png) 
+![](C:/figure/average-daily-activty-pattern.png)
 
 5. The 5-minute interval that, on average, contains the maximum number of steps
 
 ```r
-maxSteps <- which.max(actDataByInterval$steps)
-actDataByInterval[maxSteps, ]
+MaxInterval <- names(sort(StepsPerInterval, decreasing = TRUE)[1])
+MaxSteps <- sort(StepsPerInterval, decreasing = TRUE)[1]
 ```
 
-```
-##     interval steps
-## 104      835 206.2
-```
+The 5-minute interval that, on average, contains the maximum number of steps is: `MaxInterval`
 
 ## Imputing missing values
 
 6. Code to describe and show a strategy for imputing missing data
+*The code below splits the available activity data by interval, then fills in each interval that has missing data (using the dataset mean)*
 
 ```r
-missingValues <- which(is.na(actData$steps))
-length(missingValues)
-```
-
-```
-## [1] 2304
-```
-
-Dataset is populated with missing values using the mean
-
-```r
-actFullData <- actData
-for(i in missingValues) {
-    actFullData$steps[i] <- actDataByInterval[which(actDataByInterval$interval == actFullData[i, "interval"]), "steps"]
+StepsPerInterval <- tapply(activity$steps, activity$interval, mean, na.rm = TRUE)
+activity.split <- split(activity, activity$interval)
+for(i in 1:length(activity.split)){
+    activity.split[[i]]$steps[is.na(activity.split[[i]]$steps)] <- StepsPerInterval[i]
 }
-```
-
-We new data number of steps per day is calculated
-
-
-```r
-actFullDataByMonth <- aggregate(actFullData$steps, by = list(actFullData$date),
-                            FUN = sum, na.rm = TRUE)
-names(actFullDataByMonth) <- c("date", "steps")
+activity.imputed <- do.call("rbind", activity.split)
+activity.imputed <- activity.imputed[order(activity.imputed$date) ,]
 ```
 
 7. Histogram of the total number of steps taken each day after missing values are imputed
 
-Histogram is created using the ggplot package
-
 ```r
-ggplot(actFullDataByMonth, aes(x = date, y = steps)) + 
-    geom_bar(stat = "identity", fill = "lightblue", color="black", binwidth = 2000) + 
-    labs(title = "Total steps per day - Full Dataset", x = "Date", y = "Number of Steps") +
-    scale_x_date(breaks = date_breaks("1 week"),
-                 labels = date_format("%d %b %y")) +
-    geom_line(stat="hline", yintercept=mean, linetype="dotted") +
-    geom_line(stat="hline", yintercept=median, linetype="dashed")
+StepsPerDay.imputed <- tapply(activity.imputed$steps, activity.imputed$date, sum)
+hist(StepsPerDay.imputed, xlab = "Number of Steps", main = "Histogram: Steps per Day (Imputed data)")
 ```
 
-![plot of chunk plotfullsumperday](figure/plotfullsumperday.png) 
+![](C:/figure/steps-per-day_imputed-data.png)
 
 8. Panel plot comparing the average number of steps taken per 5-minute interval across weekdays and weekends
 
-
 ```r
-actFullData <- transform(actFullData, isWeekend=as.POSIXlt(date)$wday %in% c(0, 6))
-actFullDataByIntervalDay <- aggregate(actFullData$steps,
-                                      by = list(actFullData$interval, actFullData$isWeekend),
-                                      FUN = mean)
-names(actFullDataByIntervalDay) <- c("interval","isWeekend","steps")
-library(lattice)
-xyplot(steps ~ interval|isWeekend, data = actFullDataByIntervalDay,
-       type = "l", layout=c(1, 2),
-       main = "Average Steps by Interval and Weekend (TRUE) / Weekday(FALSE)",
-       xlab = "Interval", ylab = "Average Steps (mean)")
+MeanPerDay.imputed <- mean(StepsPerDay.imputed, na.rm = TRUE)
+MedianPerDay.imputed <- median(StepsPerDay.imputed, na.rm = TRUE)
+activity.imputed$day <- ifelse(weekdays(as.Date(activity.imputed$date)) == "Saturday" | weekdays(as.Date(activity.imputed$date)) == "Sunday", "weekend", "weekday")
+StepsPerInterval.weekend <- tapply(activity.imputed[activity.imputed$day == "weekend" ,]$steps, activity.imputed[activity.imputed$day == "weekend" ,]$interval, mean, na.rm = TRUE)
+StepsPerInterval.weekday <- tapply(activity.imputed[activity.imputed$day == "weekday" ,]$steps, activity.imputed[activity.imputed$day == "weekday" ,]$interval, mean, na.rm = TRUE)
+par(mfrow=c(1,2))
+plot(as.numeric(names(StepsPerInterval.weekday)), 
+     StepsPerInterval.weekday, 
+     xlab = "Interval", 
+     ylab = "Steps", 
+     main = "Activity Pattern (Weekdays)", 
+     type = "l")
+plot(as.numeric(names(StepsPerInterval.weekend)), 
+     StepsPerInterval.weekend, 
+     xlab = "Interval", 
+     ylab = "Steps", 
+     main = "Activity Pattern (Weekends)", 
+     type = "l")
 ```
-
-![plot of chunk plotweekends](figure/plotweekends.png) 
+![](C:/figure/panel-plot.png)
 
 9. All of the R code needed to reproduce the results (numbers, plots, etc.) in the report
 
-All code, including output of numbers and plots, as been included in the above report.
+I have put all code, including output of numbers and plots, in the above report.
