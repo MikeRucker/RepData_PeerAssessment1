@@ -1,12 +1,7 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
+# Reproducible Research: Peer Assessment 1
 
 Work by: Mike Rucker, Ph.D.
-Date: 7/16/2017 v.2.1 
+Date: 7/16/2017
 
 ## Loading and preprocessing the data
 
